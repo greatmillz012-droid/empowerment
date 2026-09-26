@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f5f6f2;
+  --foreground: #182321;
+  --green: #176b55;
+  --lime: #d6f06c;
+  --line: #dce2da;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-geist-sans), sans-serif;
+  min-height: 100vh;
+}
+
+button, input, select { font: inherit; }
+
+.field-label { display: block; margin-bottom: 7px; color: #475750; font-size: 12px; font-weight: 600; }
+.field { display: block; width: 100%; height: 46px; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 0 12px; color: var(--foreground); outline: none; font-size: 14px; }
+.field::placeholder { color: #a0aaa4; }
+.field:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(23, 107, 85, .1); }
+.select-wrap { position: relative; display: block; }
+
+.page-grid {
+  background-image: linear-gradient(rgba(24, 35, 33, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(24, 35, 33, .035) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.reveal { animation: reveal .55s ease-out both; }
+@keyframes reveal {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
