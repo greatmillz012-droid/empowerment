@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createAdminClient } from "@/lib/supabase-admin";
+import { getDb } from "@/lib/neon";
 import { createOtp, hashOtp } from "@/lib/otp";
 import { sendVerificationEmail } from "@/lib/email";
 
@@ -17,22 +17,23 @@ export async function POST(request: Request) {
     if (!parsed.success) return NextResponse.json({ error: "Check the details and try again." }, { status: 400 });
     const { fullName, email: rawEmail, phone, gender, state } = parsed.data;
     const email = rawEmail.toLowerCase();
-    const supabase = createAdminClient();
-    const existing = await supabase.from("users").select("id").eq("email", email).maybeSingle();
-    if (existing.error) throw existing.error;
-    if (existing.data) return NextResponse.json({ error: "An account with this email already exists. Contact support to continue." }, { status: 409 });
-    const { data: user, error: insertError } = await supabase.from("users").insert({ full_name: fullName, email, phone, gender, state, payment_status: "unpaid" }).select("id").single();
-    if (insertError) throw insertError;
+    const sql = getDb();
+    const existing = await sql`select id from users where email = ${email} limit 1`;
+    if (existing.length) return NextResponse.json({ error: "An account with this email already exists. Contact support to continue." }, { status: 409 });
+    const [user] = await sql`insert into users (full_name, email, phone, gender, state, payment_status)
+      values (${fullName}, ${email}, ${phone}, ${gender}, ${state}, 'unpaid') returning id`;
     const code = createOtp();
-    const { error: otpError } = await supabase.from("otps").insert({ user_id: user.id, otp_code: hashOtp(code), expires_at: new Date(Date.now() + 10 * 60_000).toISOString(), used: false });
-    if (otpError) {
-      await supabase.from("users").delete().eq("id", user.id);
+    try {
+      await sql`insert into otps (user_id, otp_code, expires_at)
+        values (${user.id}, ${hashOtp(code)}, ${new Date(Date.now() + 10 * 60_000).toISOString()})`;
+    } catch (otpError) {
+      await sql`delete from users where id = ${user.id}`;
       throw otpError;
     }
     try {
       await sendVerificationEmail(email, code);
     } catch (error) {
-      await supabase.from("users").delete().eq("id", user.id);
+      await sql`delete from users where id = ${user.id}`;
       throw error;
     }
     return NextResponse.json({ ok: true, email });

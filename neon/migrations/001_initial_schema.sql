@@ -9,7 +9,7 @@ create table if not exists public.users (
   state text not null,
   email_verified boolean not null default false,
   empowerment_type text,
-  paystack_customer_code text unique,
+  flutterwave_tx_ref text unique,
   virtual_account_number text unique,
   virtual_account_bank text,
   virtual_account_name text,
@@ -31,12 +31,6 @@ create table if not exists public.otps (
 
 create index if not exists otps_user_created_idx on public.otps(user_id, created_at desc);
 create index if not exists users_payment_status_idx on public.users(payment_status);
-
-alter table public.users enable row level security;
-alter table public.otps enable row level security;
-
-revoke all on public.users, public.otps from anon, authenticated;
-grant all on public.users, public.otps to service_role;
 
 create or replace function public.consume_registration_otp(p_user_id uuid, p_otp_hash text)
 returns uuid
@@ -69,7 +63,6 @@ begin
   end if;
 
   update public.otps set used = true where id = otp_row.id returning user_id into verified_user_id;
-
   if verified_user_id is not null then
     update public.users set email_verified = true where id = verified_user_id;
   end if;
@@ -77,5 +70,4 @@ begin
 end;
 $$;
 
-revoke all on function public.consume_registration_otp(uuid, text) from public, anon, authenticated;
-grant execute on function public.consume_registration_otp(uuid, text) to service_role;
+revoke all on function public.consume_registration_otp(uuid, text) from public;

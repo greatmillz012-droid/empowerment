@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createAdminClient } from "@/lib/supabase-admin";
+import { getDb } from "@/lib/neon";
 import { getParticipantId } from "@/lib/session";
 import { isEmpowermentType } from "@/lib/empowerment-types";
 
@@ -12,11 +12,10 @@ export async function POST(request: Request) {
   try {
     const parsed = schema.safeParse(await request.json());
     if (!parsed.success || !isEmpowermentType(parsed.data.empowermentType)) return NextResponse.json({ error: "Choose a valid empowerment type." }, { status: 400 });
-    const supabase = createAdminClient();
-    const { data, error } = await supabase.from("users").update({ empowerment_type: parsed.data.empowermentType })
-      .eq("id", userId).eq("email_verified", true).eq("payment_status", "unpaid").select("id").maybeSingle();
-    if (error) throw error;
-    if (!data) return NextResponse.json({ error: "Your registration could not be updated." }, { status: 403 });
+    const sql = getDb();
+    const updated = await sql`update users set empowerment_type = ${parsed.data.empowermentType}
+      where id = ${userId} and email_verified = true and payment_status = 'unpaid' returning id`;
+    if (!updated.length) return NextResponse.json({ error: "Your registration could not be updated." }, { status: 403 });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Empowerment selection failed", error);

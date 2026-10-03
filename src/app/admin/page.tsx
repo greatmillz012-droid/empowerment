@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { UsersRound } from "lucide-react";
 import AdminLogout from "@/components/admin-logout";
-import { createAdminClient } from "@/lib/supabase-admin";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { getDb } from "@/lib/neon";
+import { getAdminEmail } from "@/lib/session";
 import { empowermentLabel } from "@/lib/empowerment-types";
 
 export const dynamic = "force-dynamic";
@@ -10,14 +10,15 @@ export const dynamic = "force-dynamic";
 type SearchParams = { status?: string };
 
 export default async function AdminPage({ searchParams }: { searchParams: SearchParams }) {
-  const auth = await createServerSupabaseClient();
-  const { data: { user } } = await auth.auth.getUser();
-  if (!user || user.app_metadata.role !== "admin") redirect("/admin/login");
+  const adminEmail = await getAdminEmail();
+  if (!adminEmail || adminEmail !== process.env.ADMIN_EMAIL?.trim().toLowerCase()) redirect("/admin/login");
 
   const status = searchParams.status === "paid" || searchParams.status === "unpaid" ? searchParams.status : "all";
-  let query = createAdminClient().from("users").select("id, full_name, email, phone, empowerment_type, payment_status, created_at").order("created_at", { ascending: false });
-  if (status !== "all") query = query.eq("payment_status", status);
-  const { data: users, error } = await query;
+  const sql = getDb();
+  const users = status === "all"
+    ? await sql`select id, full_name, email, phone, empowerment_type, payment_status, created_at from users order by created_at desc`
+    : await sql`select id, full_name, email, phone, empowerment_type, payment_status, created_at from users where payment_status = ${status} order by created_at desc`;
+  const error = false;
 
   return <main className="min-h-screen bg-[#f5f6f2] px-4 py-7 sm:px-8"><div className="mx-auto max-w-7xl">
     <header className="flex items-center justify-between border-b border-[var(--line)] pb-5"><a href="/" className="font-bold tracking-tight">nextgen<span className="text-[var(--green)]">.</span> <span className="ml-2 text-xs font-medium uppercase tracking-widest text-[#839088]">Registry</span></a><AdminLogout /></header>
