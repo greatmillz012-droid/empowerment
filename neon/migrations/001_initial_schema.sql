@@ -9,7 +9,7 @@ create table if not exists public.users (
   state text not null,
   email_verified boolean not null default false,
   empowerment_type text,
-  flutterwave_tx_ref text unique,
+  paystack_customer_code text unique,
   virtual_account_number text unique,
   virtual_account_bank text,
   virtual_account_name text,

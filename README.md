@@ -1,6 +1,6 @@
 # NextGen Youth Empowerment Registration
 
-Next.js 14 App Router registration platform using Neon Postgres, Resend, Flutterwave virtual accounts, and Vercel-compatible route handlers. Participants register, verify email by a one-use six-digit code, choose an empowerment track, and pay the ₦2,000 form-purchase fee by bank transfer. Admin access uses one server-configured credential pair and signed HTTP-only sessions.
+Next.js 14 App Router registration platform using Neon Postgres, Resend, Paystack dedicated virtual accounts, and Vercel-compatible route handlers. Participants register, verify email by a one-use six-digit code, choose an empowerment track, and pay the ₦2,000 form-purchase fee by bank transfer. Admin access uses one server-configured credential pair and signed HTTP-only sessions.
 
 ## Local setup
 
@@ -19,8 +19,9 @@ Next.js 14 App Router registration platform using Neon Postgres, Resend, Flutter
 | `ADMIN_PASSWORD` | Generate a long unique password | Server-only. Store in `.env.local` and deployment secrets. |
 | `RESEND_API_KEY` | Resend API keys | Server-only transactional email key. |
 | `EMAIL_FROM` | Verified sender in Resend | For example `NextGen <updates@your-domain.example>`. Verify the sending domain first. |
-| `FLW_SECRET_KEY` | Flutterwave Dashboard > Settings > API Keys | Use a test secret key until end-to-end testing is complete. |
-| `FLW_SECRET_HASH` | Flutterwave Dashboard > Webhooks | Set the same secret hash configured for the webhook endpoint. |
+| `PAYSTACK_SECRET_KEY` | Paystack Dashboard > Settings > API Keys & Webhooks | Use a test secret key until end-to-end testing is complete. |
+| `PAYSTACK_WEBHOOK_SECRET` | Paystack Dashboard > Settings > API Keys & Webhooks | Usually the Paystack secret key; set explicitly if using a separate webhook secret. |
+| `PAYSTACK_PREFERRED_BANK` | Paystack Dedicated Virtual Accounts | Optional preferred bank slug for account creation. |
 | `SESSION_SECRET` | Generate locally | At least 32 random characters; signs participant and admin cookies. |
 | `OTP_SECRET` | Generate locally | A different 32+ random characters; HMAC-hashes OTPs at rest. |
 | `NEXT_PUBLIC_SITE_URL` | Your local/deployed origin | `http://localhost:3000` locally; deployed origin in Vercel. |
@@ -30,7 +31,7 @@ Generate `SESSION_SECRET` and `OTP_SECRET` with `node -e "console.log(require('n
 ## Neon setup
 
 1. Create a Neon project on the free plan.
-2. In the Neon SQL Editor, run [`neon/migrations/001_initial_schema.sql`](neon/migrations/001_initial_schema.sql). It creates `users`, `otps`, uniqueness constraints for email, Flutterwave transaction references, and virtual account numbers, plus an atomic OTP-consumption function.
+2. In the Neon SQL Editor, run [`neon/migrations/001_initial_schema.sql`](neon/migrations/001_initial_schema.sql). It creates `users`, `otps`, uniqueness constraints for email, Paystack customer codes, and virtual account numbers, plus an atomic OTP-consumption function.
 3. Copy the pooled connection string from Neon Connection Details to `DATABASE_URL`. Keep it server-only and require SSL.
 4. Set `ADMIN_EMAIL` and a long, unique `ADMIN_PASSWORD` in `.env.local` and in Vercel environment variables. The application has no public admin registration endpoint.
 5. Visit `/admin/login`. Admin routes verify a signed 12-hour HTTP-only cookie and compare its email with the configured administrator email.
@@ -45,24 +46,22 @@ Changing the application connection does not copy existing rows. If the old Supa
 
 Create a Resend account on its available free tier, create an API key, verify a sending domain, and set `RESEND_API_KEY` and `EMAIL_FROM`. Resend account/domain verification and sending limits apply; test delivery before opening registration.
 
-## Flutterwave setup
+## Paystack setup
 
-1. Create/configure a Flutterwave business account and begin with test API keys.
-2. Confirm virtual-account creation for NGN is enabled for the merchant account. Flutterwave may require account review or additional identity/business verification before issuing accounts.
-3. Configure a webhook URL: `https://YOUR_HOST/api/webhooks/flutterwave`. Copy the webhook secret hash into `FLW_SECRET_HASH`. Webhooks must reach the deployed HTTPS endpoint.
-4. Test account issuance, an exact ₦2,000 NGN bank transfer, `charge.completed` delivery, server-side transaction verification, and confirmation email in Flutterwave test mode before switching to live keys.
+1. Configure a Paystack business account and begin with test API keys. Confirm Dedicated Virtual Accounts are enabled for the account.
+2. Set `PAYSTACK_SECRET_KEY` and configure the Paystack webhook URL as `https://YOUR_HOST/api/webhooks/paystack`. Webhooks must reach the deployed HTTPS endpoint.
+3. Run an exact ₦2,000 NGN bank transfer to a generated dedicated account and confirm Paystack delivers `charge.success`. The webhook verifies the transaction server-side before marking the registration paid.
+4. Test account issuance, payment verification, and confirmation email in test mode before switching to live keys.
 
-The API requests an amount-scoped, non-permanent virtual account for NGN 2,000 and persists the returned number only for the requesting verified participant. A Neon `UNIQUE` constraint prevents one account number from being assigned to two users. Non-permanent accounts are not guaranteed to be reusable indefinitely; confirm Flutterwave's expiry rules for your account and issue a replacement if one expires. Flutterwave's webhook secret hash is checked, then the transaction is fetched from Flutterwave and accepted only when it is successful, exactly NGN 2,000, and carries the expected per-user transaction reference.
+The app creates a Paystack customer and dedicated virtual account for each verified participant. A Neon `UNIQUE` constraint prevents a customer code or account number from being assigned to multiple registrations. The webhook validates Paystack's HMAC SHA-512 signature, verifies the transaction with Paystack, and accepts only successful transactions for exactly ₦2,000 NGN.
 
-This setup deliberately uses non-permanent accounts so registration does not collect and store a participant's BVN. If Flutterwave requires permanent virtual accounts for your use case, its current merchant requirements may require customer identity data; confirm this with Flutterwave before adding sensitive identity fields to the application.
-
-For an already deployed Paystack database, apply [`neon/migrations/002_flutterwave.sql`](neon/migrations/002_flutterwave.sql) after backing up the database. It drops the Paystack customer-code column, adds the Flutterwave transaction-reference column, and clears unpaid Paystack account details so the app will not present them as valid Flutterwave accounts.
+For an existing Neon database previously migrated to Flutterwave, back up the database and apply [`neon/migrations/003_paystack.sql`](neon/migrations/003_paystack.sql). It restores the Paystack customer-code column, clears unpaid Flutterwave virtual-account details so new Paystack accounts can be created, and removes the Flutterwave transaction-reference column. Paid registrations are preserved.
 
 ## Deploy to Vercel
 
-Import the repository into Vercel using the free Hobby plan, set all production environment variables, deploy, then configure the Flutterwave webhook with the production URL. Configure Preview with test keys and a suitable Neon database branch. Never expose database, email, payment, or administrator secrets to the client.
+Import the repository into Vercel using the free Hobby plan, set all production environment variables, deploy, then configure the Paystack webhook with the production URL. Configure Preview with test keys and a suitable Neon database branch. Never expose database, email, payment, or administrator secrets to the client.
 
-The app has no monthly subscription requirement in its design, but third-party free plans have quotas and eligibility limits. Flutterwave may charge transaction fees, and virtual-account access may require account verification/approval; Neon, Resend, and Vercel free-tier limits also apply. “Free services” cannot guarantee zero payment-processing cost or unrestricted provider availability.
+The app has no monthly subscription requirement in its design, but third-party free plans have quotas and eligibility limits. Paystack charges transaction fees, and dedicated-account access may require account verification/approval; Neon, Resend, and Vercel free-tier limits also apply. “Free services” cannot guarantee zero payment-processing cost or unrestricted provider availability.
 
 ## Editable empowerment tracks
 
@@ -72,6 +71,6 @@ Edit `src/lib/empowerment-types.ts`. The admin screen resolves stored values thr
 
 - OTPs are randomly generated, stored as keyed HMAC hashes, expire after 10 minutes, and are consumed atomically with a five-attempt limit.
 - Participant and administrator sessions use HTTP-only, same-site cookies signed with `SESSION_SECRET`.
-- Neon, Flutterwave, Resend, and admin credentials are server-only.
-- The Flutterwave webhook validates its secret hash, verifies the transaction server-side, and refuses amounts/currencies outside the expected fee.
+- Neon, Paystack, Resend, and admin credentials are server-only.
+- The Paystack webhook validates its signature, verifies the transaction server-side, and refuses amounts/currencies outside the expected fee.
 - Before a public launch, add operational alerting/periodic reconciliation for failed confirmation emails and verify provider rate/usage limits.
