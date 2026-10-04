@@ -53,6 +53,7 @@ export default function RegistrationForm() {
               <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-white/70 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-[var(--green)]"><span className="size-1.5 rounded-full bg-[var(--green)]" /> Applications now open</p>
               <h1 className="max-w-lg text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl">Make room for your <span className="text-[var(--green)]">next move.</span></h1>
               <p className="mt-6 max-w-md text-base leading-7 text-[#61716b]">A practical empowerment programme for young people ready to build skills, strengthen ideas and shape what comes next.</p>
+              <p className="mt-4 max-w-md text-sm font-semibold leading-6 text-[var(--green)]">Building brighter futures since 2005. There is still so much more to build.</p>
               <div className="mt-9 grid max-w-md grid-cols-3 border-y border-[var(--line)] py-5">{["Skills", "Enterprise", "Guidance"].map((item, index) => <div key={item} className={index > 0 ? "border-l border-[var(--line)] pl-4" : ""}><span className="block text-xs text-[#82908a]">0{index + 1}</span><span className="mt-1 block text-sm font-semibold">{item}</span></div>)}</div>
             </div>
 
