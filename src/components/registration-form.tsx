@@ -38,7 +38,7 @@ export default function RegistrationForm() {
   }
 
   return (
-    <main className="page-grid min-h-screen px-4 py-5 sm:px-8 sm:py-8">
+    <main className="page-grid registration-page min-h-screen px-4 py-5 sm:px-8 sm:py-8">
       <div className="mx-auto max-w-6xl">
         <header className="flex items-center justify-between border-b border-[var(--line)] pb-5">
           <a href="/" className="flex items-center gap-3 font-bold tracking-tight">
