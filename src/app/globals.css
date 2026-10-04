@@ -27,9 +27,18 @@ button, input, select { font: inherit; }
 
 .page-grid {
   background-image: linear-gradient(rgba(24, 35, 33, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(24, 35, 33, .035) 1px, transparent 1px), linear-gradient(rgba(245, 246, 242, .76), rgba(245, 246, 242, .88)), url("https://images.unsplash.com/photo-1513364776144-60967b0f800f?auto=format&fit=crop&w=2200&q=85");
-  background-position: 0 0, 0 0, center, center;
+  background-position: 0 0, 0 0, center, 47% 53%;
   background-size: 32px 32px, 32px 32px, cover, cover;
   background-attachment: scroll, scroll, fixed, fixed;
+  animation: watermark-drift 36s ease-in-out infinite alternate;
+}
+
+@keyframes watermark-drift {
+  to { background-position: 0 0, 0 0, center, 53% 47%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-grid { animation: none; }
 }
 
 .reveal { animation: reveal .55s ease-out both; }
