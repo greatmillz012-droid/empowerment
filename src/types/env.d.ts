@@ -8,9 +8,11 @@ declare global {
       PAYSTACK_SECRET_KEY?: string;
       PAYSTACK_WEBHOOK_SECRET?: string;
       PAYSTACK_PREFERRED_BANK?: string;
+      PAYSTACK_PAYMENT_URL?: string;
       SESSION_SECRET?: string;
       OTP_SECRET?: string;
       NEXT_PUBLIC_SITE_URL?: string;
+      NEXT_PUBLIC_PAYSTACK_PAYMENT_URL?: string;
       DATABASE_URL?: string;
       NEXT_PUBLIC_SUPPORT_EMAIL?: string;
     }
