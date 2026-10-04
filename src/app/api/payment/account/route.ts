@@ -12,6 +12,13 @@ const accountSchema = z.object({
   bank_name: z.string().optional(),
 });
 
+function normalizePreferredBank() {
+  const preferredBank = process.env.PAYSTACK_PREFERRED_BANK?.trim();
+  if (!preferredBank) return undefined;
+  const normalized = preferredBank.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+  return normalized || undefined;
+}
+
 export async function GET() {
   const userId = await getParticipantId();
   if (!userId) return NextResponse.json({ error: "Verify your email to continue." }, { status: 401 });
@@ -51,11 +58,19 @@ export async function POST() {
     }
     if (!customerCode) throw new Error("Could not assign a Paystack customer code.");
 
-    const preferredBank = process.env.PAYSTACK_PREFERRED_BANK;
-    const account = await paystackRequest<unknown>("/dedicated_account", "POST", {
-      customer: customerCode,
-      ...(preferredBank ? { preferred_bank: preferredBank } : {}),
-    });
+    const preferredBank = normalizePreferredBank();
+    const basePayload = { customer: customerCode } as { customer: string; preferred_bank?: string };
+    if (preferredBank) basePayload.preferred_bank = preferredBank;
+
+    let account: unknown;
+    try {
+      account = await paystackRequest<unknown>("/dedicated_account", "POST", basePayload);
+    } catch (error) {
+      if (!preferredBank) throw error;
+      console.warn("Paystack preferred bank rejected; retrying without preferred_bank.", error);
+      account = await paystackRequest<unknown>("/dedicated_account", "POST", { customer: customerCode });
+    }
+
     const parsed = accountSchema.safeParse(account);
     if (!parsed.success) throw new Error("Paystack returned incomplete dedicated account details.");
     const accountNumber = parsed.data.account_number;

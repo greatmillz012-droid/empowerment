@@ -23,7 +23,7 @@ export default function RegistrationForm() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Registration failed.");
-      router.push(`/verify?email=${encodeURIComponent(result.email)}`);
+      router.push(result.resume ? "/choose" : `/verify?email=${encodeURIComponent(result.email)}`);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Something went wrong.");
       setBusy(false);
